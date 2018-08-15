@@ -1,0 +1,12 @@
+name: "scrumbot"
+
+base_url: https://ayfie-dev.atlassian.net
+
+teams:
+  professional-services:
+    users-to-notify:
+      - trevortds@gmail.com
+    day-of-week: Tuesday
+    UTC-time: 9 PM
+    hours-til-expiration: 12
+    jql-search-query: 'project in (PSE, "IN", CQRC, Bahr) AND cf[10022] = "OPS America" AND "Story Points" is EMPTY ORDER BY createdDate ASC'
