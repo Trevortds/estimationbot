@@ -4,9 +4,10 @@ base_url: https://ayfie-dev.atlassian.net
 
 teams:
   professional-services:
-    users-to-notify:
+    users_to_notify:
       - trevortds@gmail.com
-    day-of-week: Tuesday
-    UTC-time: 9 PM
-    hours-til-expiration: 12
-    jql-search-query: 'project in (PSE, "IN", CQRC, Bahr) AND cf[10022] = "OPS America" AND "Story Points" is EMPTY ORDER BY createdDate ASC'
+    day_of_week: Tuesday
+    UTC_time: 9 PM
+    hours_til_expiration: 12
+    max_per_meeting: 10
+    jql_search_query: 'project in (PSE, "IN", CQRC, Bahr) AND cf[10022] = "OPS America" AND "Story Points" is EMPTY ORDER BY createdDate ASC'
