@@ -1,23 +1,14 @@
 import os
-import time
 from slackclient import SlackClient
 import datetime
 import sys
 import logging
 import requests
-from dateutil.parser import parse
-from dateutil.tz import gettz
-from subprocess import call
-import random
-import re
+from time import sleep
+import dateutil.parser
+from dateutil import tz
+
 import yaml
-
-#
-# from lingbot.features.nlprg_schedule_reader import nlprg_meeting
-# from lingbot.features import ai
-# from lingbot.features import generic_schedule_reader
-# from lingbot import passive_feats, active_feats
-
 
 try:
     with open("api.txt", 'r') as f:
@@ -46,6 +37,10 @@ awaiting_response = set()
 
 conversations = {}
 
+answers = {}
+
+channel_to_name = {}
+
 
 def set_up_logging(log_file_name=None):
     _logger = logging.getLogger('')
@@ -66,7 +61,7 @@ def set_up_logging(log_file_name=None):
     return _logger
 
 
-def send_message(channel, message):
+def send_message(channel, message, attachments=None):
     # if channel not in channel_codes.keys():
     #     print("channel doesn't exist, please pick from one of these")
     #     for key in channel_codes.keys():
@@ -77,20 +72,114 @@ def send_message(channel, message):
     # curl -X POST -H 'Content-type: application/json' --data '{"text":"Hello, World!"}' https://hooks.slack.com/services/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
     # in final deployment, swap the url for one achieved this way https://api.slack.com/incoming-webhooks# (scroll down to "generating programmatically")
     slack_client.api_call("chat.postMessage",
-                          channel=channel, text=message, as_user=True)
+                          channel=channel, text=message, as_user=True, attachments=attachments)
 
-def get_unestimated_tasks(team, max=10):
+
+def get_unestimated_tasks(team: str, max=10):
     response = requests.get(cfg["base_url"]+"/rest/api/2/search",
-                            params={"jql":cfg["teams"][team]["jql-search-query"]},
+                            params={"maxResults": max, "jql": cfg["teams"][team]["jql_search_query"]},
                             auth=requests.auth.HTTPBasicAuth(jira_user, jira_pass))
-    logging.info(response.json())
-    # TODO return list of tuples (id, name, url) up to max
+    todo_list = response.json()["issues"]
+    output = []
+    for issue in todo_list:
+        output.append((issue["id"],
+                       team,
+                       issue["key"],
+                       issue["fields"]["summary"],
+                       cfg["base_url"]+"/browse/"+issue["key"]))
+    return output
 
-def start_estimations(team):
+
+def start_conversation(channel, unestimated_tasks):
+    logging.debug("starting conversation in channel {}".format(channel))
+    if channel in conversations and conversations[channel]["tasks"] != []:
+        conversations[channel]["tasks"] += unestimated_tasks
+    else:
+        conversations[channel] = {}
+        conversations[channel]["tasks"] = unestimated_tasks
+    send_message(channel, cfg["start_message"])
+    send_message(channel, "\n".join(conversations[channel]["tasks"][0][2:]))
+    awaiting_response.add(channel)
+
+
+def start_estimations(team: str):
     unestimated_tasks = get_unestimated_tasks(team)
-    # TODO initialize a conversation with each person on the team
-    # Check if we're already awaiting a response for that person, if so, append to the
-    # existing conversation
+    for email in cfg["teams"][team]["users_to_notify"]:
+        user_list = slack_client.api_call("users.list")["members"] # use this to get users.
+        user = [user for user in user_list if user["profile"].get("email", "") == email][0] # use this to get id
+        user_channel = slack_client.api_call("im.open", user=user["id"])["channel"]["id"] # use this to get dm channel
+
+        start_conversation(user_channel, unestimated_tasks)
+        channel_to_name[user_channel] = user["profile"]["display_name"]
+    answers[team] = {}
+
+
+def end_conversation(user_channel, team):
+    awaiting_response.remove(user_channel)
+    remove_list = []
+    for issue in conversations[user_channel]["tasks"]:
+        if issue[1] == team:
+            remove_list.append(issue)
+            logging.debug("removed {} from queue".format(issue))
+    conversations[user_channel]["tasks"] = [e for e in conversations[user_channel]["tasks"] if e not in remove_list]
+    logging.debug("remaining queue: {}".format(conversations[user_channel]["tasks"]))
+    if remove_list:
+        send_message(user_channel, "Out of time for {}".format(team))
+        if conversations[user_channel]["tasks"]:
+            send_message(user_channel, "Please estimate these:\n"+"\n".join(conversations[user_channel]["tasks"][0][2:]))
+
+
+def start_meeting(team):
+    meeting_channel = [c["id"] for c in slack_client.api_call("channels.list")["channels"]
+                       if c["name"] == cfg["teams"][team]["meeting_channel"]][0]
+    send_message(meeting_channel,
+                 "The results from the estimation poll are ready:\n",
+                 [{"fallback": "Show Results",
+                   "actions": [
+                       {
+                           "name": "Action",
+                           "type": "button",
+                           "text": "See next",
+                           "value": "next"
+                       }
+                   ]
+                   }
+                 ])
+    # TODO implement callback from see next button
+
+
+def stop_estimations(team: str):
+    logging.info("Estimation finished! Results: \n{}".format(answers[team]))
+    for email in cfg["teams"][team]["users_to_notify"]:
+        user_list = slack_client.api_call("users.list")["members"] # use this to get users.
+        user = [user for user in user_list if user["profile"].get("email", "") == email][0] # use this to get id
+        user_channel = slack_client.api_call("im.open", user=user["id"])["channel"]["id"] # use this to get dm channel
+
+        end_conversation(user_channel, team)
+    start_meeting(team)
+    answers[team] = {}
+
+
+def process_message(message: str, channel):
+    if channel not in awaiting_response:
+        logging.debug("Got unexpected reply from {} ({})\n{}".format(channel, channel_to_name[channel], awaiting_response))
+        return
+    issue = conversations[channel]["tasks"][0]
+    team = issue[1]
+    if message.strip() not in cfg["teams"][team]["allowed_responses"]:
+        send_message(channel, "Invalid response, please try again")
+        return
+    logging.debug("conversation is {}\nissue is {}".format(conversations[channel], issue))
+    if issue[0] not in answers[team]:
+        answers[team][issue[0]] = {}
+    answers[team][issue[0]][channel_to_name[channel]] = message.strip()
+    conversations[channel]["tasks"].pop(0)
+    if conversations[channel]["tasks"]:
+        send_message(channel, "Thanks! next: \n\n"+"\n".join(conversations[channel]["tasks"][0][2:]))
+    else:
+        send_message(channel, "Good Job! you're done!")
+        awaiting_response.remove(channel)
+
 
 def parse_slack_output(slack_rtm_output):
     '''
@@ -98,27 +187,40 @@ def parse_slack_output(slack_rtm_output):
     This parsing function returns none unless a message is directed
     at the bot based on its id
     '''
-    logging.info(slack_rtm_output)
-    user_list = slack_client.api_call("users.list")["members"] # use this to get users.
-    trevor = [user["id"] for user in user_list if user["profile"]["display_name"] == "trevor"][0] # use this to get id
-    user_channel = slack_client.api_call("im.open", user=trevor)["channel"]["id"] # use this to get dm channel
-    send_message(user_channel, "hi, I know who you are")
+    logging.debug(slack_rtm_output)
+
 
     output_list = slack_rtm_output
     if output_list and len(output_list) > 0:
         for output in output_list:
-            if output and 'text' in output and output['user'] in awaiting_response:
+            if output and output["type"] == "message" and "bot_id" not in output \
+                    and 'text' in output \
+                    and output['channel'] in awaiting_response:
                 # return text after the @ mention, whitespace removed
+                logging.debug("Response triggered from {}".format(channel_to_name[output["channel"]]))
                 return output['text'].strip().lower(), \
                     output['channel'], output['user']
     return None, None, None
 
+def settings_to_datetime(team_settings: dict):
+    output = dateutil.parser.parse(team_settings["day_of_week"])
+    if output < datetime.datetime.today():
+        output += datetime.timedelta(days=7)
+    hour = dateutil.parser.parse(team_settings["time"])
+    tzinfo = tz.gettz(team_settings["time_zone"])
+    output = output.replace(hour=hour.hour, minute=hour.minute, tzinfo=tzinfo)
+    return output
 
-def main(test = False):
+def main():
     set_up_logging()
-    READ_WEBSOCKET_DELAY = 5  # second delay between reading from firehose
-    start_time = datetime.datetime.now()
-    logging.info(get_unestimated_tasks("professional-services"))
+    READ_WEBSOCKET_DELAY = 1  # second delay between reading from firehose
+
+    start_times = {settings_to_datetime(cfg["teams"][team]["start_time"]): team for team in cfg["teams"]}
+    start_times[datetime.datetime.now().replace(microsecond=0)] = "professional-services"
+
+    end_times = {settings_to_datetime(cfg["teams"][team]["end_time"]): team for team in cfg["teams"]}
+    end_times[datetime.datetime.now().replace(microsecond=0) + datetime.timedelta(seconds=20)] = "professional-services"
+    logging.info("Estimations beginning at {}".format(start_times))
 
     if slack_client.rtm_connect():
         logging.info("ScrumBot connected and running")
@@ -126,21 +228,24 @@ def main(test = False):
             message, channel, user = parse_slack_output(
                 slack_client.rtm_read())
 
-            # TODO If there's a message, parse it and advance that user's conversation
+            if message and channel:
+                process_message(message, channel)
+
+            now = datetime.datetime.now().replace(microsecond=0)
+            trigger_team = start_times.get(now)
+            if trigger_team:
+                start_estimations(trigger_team)
 
 
-            # TODO check if now is the time to send a message to a team
-            # if so, start conversations with that team
-
-            # TODO check if it's now expiration hours past time
-            # if so, clear that team's conversations and tell them that they're
-            # out of time
+            trigger_team = end_times.get(now)
+            if trigger_team:
+                stop_estimations(trigger_team)
 
             # if command and channel:
             #     active.handle_command(command, channel, user)
             # else:
             #     passive.check()
-            time.sleep(READ_WEBSOCKET_DELAY)
+            sleep(READ_WEBSOCKET_DELAY)
     else:
         logging.info("connection failed, invalid slack token or bot id?")
         return False
