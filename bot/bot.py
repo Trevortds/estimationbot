@@ -34,13 +34,46 @@ jira_user = os.environ["JIRA_UNAME"] # TODO use oauth
 jira_pass = os.environ["JIRA_PWORD"]
 
 awaiting_response = set()
+'''
+{"user1", "user2"}
+'''
 
 conversations = {}
+'''
+{"user1": 
+   {
+     "tasks": 
+       [
+         (id, team, key, summary, url),
+         (id, team, key, summary, url),
+         ...
+       ]
+   },
+ "user2": ...
+}
+'''
 
 answers = {}
+'''
+{
+  "team":
+    {
+      "issue_id":
+        {
+          "user_name": "answer",
+          "user_name2": "answer"
+        },
+      "issue_id2":
+        ...
+    }
+  "team2": ...
+}
+'''
 
 channel_to_name = {}
-
+'''
+{"user_channel": "user_name"}
+'''
 
 def set_up_logging(log_file_name=None):
     _logger = logging.getLogger('')
