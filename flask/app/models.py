@@ -14,9 +14,8 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     channel = db.Column(db.String(32), index= True, unique=True)
     user_name = db.Column(db.String(64), index=True)
-    awaiting_response = db.column(db.Boolean())
-    conversation = None # TODO list of issues
-
+    awaiting_response = db.Column(db.Boolean())
+    conversation = db.Column(db.String(1024))  # comma-separated list of issue ids
     def __repr__(self):
         return "<User {}>".format(self.user_name)
 
