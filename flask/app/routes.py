@@ -2,7 +2,6 @@ from app import app
 from app import db
 from flask import jsonify, request, abort, make_response
 from app.models import User, Issue, Answer
-import logging
 
 
 @app.errorhandler(400)
@@ -73,15 +72,15 @@ def delete_user():
 
 @app.route('/api/users', methods=['PATCH'])
 def update_user():
-    if not request.args:
+    if not request.json:
         abort(400, "invalid request")
-    if "user_channel" in request.args:
-        user = User.query.filter_by(channel=request.args["user_channel"]).first()
+    if "user_channel" in request.json:
+        user = User.query.filter_by(channel=request.json["user_channel"]).first()
         if not user:
             abort(404, "user {} not found".format(request.args.get("user_channel")))
         userdict = user.to_dict()
 
-        userdict.update(request.args)
+        userdict.update(request.json)
         user.name = userdict["user_name"]
         user.awaiting_response = userdict["awaiting_response"]
 
@@ -192,7 +191,7 @@ def delete_answer():
             "issue_id" in request.args:
         answer = Answer.query.filter_by(team=request.args.get("team"),
                                         user_name=request.args.get("user_name"),
-                                        issue_id=request.args.get("issue_id"))
+                                        issue_id=request.args.get("issue_id")).first()
         if answer is not None:
             db.session.delete(answer)
             db.session.commit()
@@ -212,7 +211,10 @@ def add_conversation():
     user = User.query.filter_by(channel=request.json["user_channel"]).first()
     if not user:
         abort(404, "user {} not found".format(request.json["user_channel"]))
-    conversation_list = user.to_dict()["conversation"]
+    if request.json["reset"]:
+        conversation_list = []
+    else:
+        conversation_list = user.to_dict()["conversation"]
     for task in request.json["unestimated_tasks"]:
         if not Issue.query.get(task["id"]):
             abort(404, "unable to find issue {} ({})".format(task["id"], task["key"]))
@@ -243,5 +245,11 @@ def pop_conversation():
 
 @app.route('/api/slack', methods=['POST'])
 def get_slack_response():
+    """
+    get an issue that this team has addressed
+    remove it and its answers from the database
+    then send those answers back to the slack channel
+    :return:
+    """
     app.logger.error(request.json)
     return "ok", 201

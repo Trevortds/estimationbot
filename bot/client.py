@@ -15,14 +15,17 @@ def check():
 
 
 def get_awaiting_response(user_channel):
-    response = requests.get(flask_url+"/api/users", params={"user_channel": user_channel})
+    response = requests.get(flask_url+"/api/users",
+                            params={"user_channel": user_channel})
     if response.status_code != 200:
         raise RuntimeError("API failed to get awaiting response from {}".format(user_channel))
     else:
         return bool(response.json()["awaiting_response"])
 
+
 def get_user(user_channel):
-    response = requests.get(flask_url+"/api/users", params={"user_channel": user_channel})
+    response = requests.get(flask_url+"/api/users",
+                            params={"user_channel": user_channel})
     if response.status_code != 200:
         raise RuntimeError("API failed to get user info for {}".format(user_channel))
     else:
@@ -30,8 +33,9 @@ def get_user(user_channel):
 
 
 def add_user(user_name, user_channel):
-    response = requests.post(flask_url+"/api/users", json={"user_name": user_name,
-                                                          "user_channel": user_channel})
+    response = requests.post(flask_url+"/api/users",
+                             json={"user_name": user_name,
+                                   "user_channel": user_channel})
     if response.status_code == 201:
         return True
     if response.status_code == 409:
@@ -41,8 +45,9 @@ def add_user(user_name, user_channel):
 
 
 def set_awaiting_response(user_channel, value):
-    response = requests.patch(flask_url+"/api/users", params={"user_channel": user_channel,
-                                                             "value": value})
+    response = requests.patch(flask_url+"/api/users",
+                              json={"user_channel": user_channel,
+                              "awaiting_response": value})
     if response.status_code != 201:
         raise RuntimeError("API failed to set awaiting response of {}: {}".format(user_channel, response.status_code))
     else:
@@ -50,7 +55,8 @@ def set_awaiting_response(user_channel, value):
 
 
 def get_issue(issue_id):
-    response = requests.get(flask_url+"/api/issues", params={"id": issue_id})
+    response = requests.get(flask_url+"/api/issues",
+                            params={"id": issue_id})
     if response.status_code == 200:
         return response.json()
     else:
@@ -58,11 +64,12 @@ def get_issue(issue_id):
 
 
 def add_issue(issue_id, team, key, summary, url):
-    response = requests.post(flask_url+"/api/issues", json={"id": issue_id,
-                                                            "team": team,
-                                                            "key": key,
-                                                            "summary": summary,
-                                                            "url": url})
+    response = requests.post(flask_url+"/api/issues",
+                             json={"id": issue_id,
+                                   "team": team,
+                                   "key": key,
+                                   "summary": summary,
+                                   "url": url})
     if response.status_code == 201:
         return True
     elif response.status_code == 409:
@@ -73,10 +80,11 @@ def add_issue(issue_id, team, key, summary, url):
 
 
 def add_answer(team, user_name, issue_id, value):
-    response = requests.post(flask_url+"/api/answers", json={"team": team,
-                                                             "user_name": user_name,
-                                                             "issue_id": issue_id,
-                                                             "value": value})
+    response = requests.post(flask_url+"/api/answers",
+                             json={"team": team,
+                                   "user_name": user_name,
+                                   "issue_id": issue_id,
+                                   "value": value})
     if response.status_code == 201:
         return True
     if response.status_code == 409:
@@ -86,7 +94,8 @@ def add_answer(team, user_name, issue_id, value):
 
 
 def get_answer(team, show_all=False):
-    response = requests.get(flask_url+"/api/answers", params={"team": team, "show_all": show_all})
+    response = requests.get(flask_url+"/api/answers",
+                            params={"team": team, "show_all": show_all})
     if response.status_code == 200:
         return response.json()
     else:
@@ -111,7 +120,8 @@ def get_conversation(user_channel):
                             issue["url"]))
     return return_list
 
-def add_conversation(user_channel, unestimated_tasks):
+
+def add_conversation(user_channel, unestimated_tasks, reset=False):
     """
     add unestimated tasks to issues, add unestimat task ids to user
     :param user_channel:
@@ -124,23 +134,37 @@ def add_conversation(user_channel, unestimated_tasks):
                   task["key"],
                   task["summary"],
                   task["url"])
-    response = requests.post(flask_url+"/api/conversations", json={"user_channel": user_channel,
-                                                                  "unestimated_tasks": unestimated_tasks})
+    response = requests.post(flask_url+"/api/conversations",
+                             json={"user_channel": user_channel,
+                                   "unestimated_tasks": unestimated_tasks,
+                                   "reset": reset})
     if response.status_code == 201:
         return True
     else:
-        raise RuntimeError("API failed to create answer {} {}: {}".format(user_channel,
+        raise RuntimeError("API failed to create conversation {} {}: {}".format(user_channel,
                                                                           unestimated_tasks,
                                                                           response.status_code))
 
 
-
 def pop_conversation(user_channel):
-    response = requests.get(flask_url+"/api/conversations/pop", params={"user_channel": user_channel})
+    response = requests.get(flask_url+"/api/conversations/pop",
+                            params={"user_channel": user_channel})
     if response.status_code == 200:
         return get_issue(response.json())
     else:
         return None
 
 
+def wipe_answers(team):
+    answerlist = get_answer(team, show_all=True)
+    for answer in answerlist:
+        response = requests.delete(flask_url+"/api/answers",
+                                   params={"team": team,
+                                           "user_name": answer["user_name"],
+                                           "issue_id": answer["issue_id"]})
+        if response.status_code != 200:
+            raise RuntimeError("API failed to delete answer {} {}: {}".format(answer["user_name"],
+                                                                  answer["issue_id"],
+                                                                  response.status_code))
+    return True
 
