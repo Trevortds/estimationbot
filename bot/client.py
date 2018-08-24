@@ -43,8 +43,8 @@ def add_user(user_name, user_channel):
 def set_awaiting_response(user_channel, value):
     response = requests.patch(flask_url+"/api/users", params={"user_channel": user_channel,
                                                              "value": value})
-    if response.status_code != 200:
-        raise RuntimeError("API failed to set awaiting response of {}".format(user_channel))
+    if response.status_code != 201:
+        raise RuntimeError("API failed to set awaiting response of {}: {}".format(user_channel, response.status_code))
     else:
         return True
 
@@ -124,7 +124,7 @@ def add_conversation(user_channel, unestimated_tasks):
                   task["key"],
                   task["summary"],
                   task["url"])
-    response = requests.get(flask_url+"/api/conversations", json={"user_channel": user_channel,
+    response = requests.post(flask_url+"/api/conversations", json={"user_channel": user_channel,
                                                                   "unestimated_tasks": unestimated_tasks})
     if response.status_code == 201:
         return True
@@ -136,9 +136,9 @@ def add_conversation(user_channel, unestimated_tasks):
 
 
 def pop_conversation(user_channel):
-    response = requests.get(flask_url+"/api/conversations.pop", params={"user_channel": user_channel})
+    response = requests.get(flask_url+"/api/conversations/pop", params={"user_channel": user_channel})
     if response.status_code == 200:
-        return response.json()
+        return get_issue(response.json())
     else:
         return None
 

@@ -217,7 +217,7 @@ def add_conversation():
         if not Issue.query.get(task["id"]):
             abort(404, "unable to find issue {} ({})".format(task["id"], task["key"]))
         if task["id"] not in conversation_list:
-            conversation_list.append(task["id"])
+            conversation_list.append(str(task["id"]))
     user.conversation = ",".join(conversation_list)
     db.session.add(user)
     db.session.commit()
@@ -236,12 +236,12 @@ def pop_conversation():
     if not conversation_list:
         abort(404, "user {} has no running conversations".format(request.args.get("user_channel")))
     user.conversation = ",".join(conversation_list[1:])
-    db.sesison.add(user)
+    db.session.add(user)
     db.session.commit()
     return jsonify(conversation_list[0])
 
 
 @app.route('/api/slack', methods=['POST'])
 def get_slack_response():
-    logging.info(request.json)
+    app.logger.error(request.json)
     return "ok", 201
