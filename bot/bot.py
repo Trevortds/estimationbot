@@ -144,6 +144,7 @@ def start_meeting(team):
     send_message(meeting_channel,
                  "The results from the estimation poll are ready:\n",
                  [{"fallback": "Show Results",
+                   "callback_id": team,
                    "actions": [
                        {
                            "name": "Action",
@@ -154,7 +155,6 @@ def start_meeting(team):
                    ]
                    }
                  ])
-    # TODO implement callback from see next button
 
 
 def stop_estimations(team: str):

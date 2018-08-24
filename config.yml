@@ -12,6 +12,7 @@ teams:
     allowed_responses: ["0","1","2","3","5","8","13","21","34","55","100"]
     users_to_notify:
       - trevortds@gmail.com
+      - cathy.walsh@ayfie.com
     # when you want users to start getting questions
     start_time:
       day_of_week: Tuesday

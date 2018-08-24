@@ -1,5 +1,6 @@
 import requests
 import os
+import logging
 
 
 flask_url = SQLALCHEMY_DATABASE_URI = os.environ.get('FLASK_URL') or \
@@ -18,7 +19,8 @@ def get_awaiting_response(user_channel):
     response = requests.get(flask_url+"/api/users",
                             params={"user_channel": user_channel})
     if response.status_code != 200:
-        raise RuntimeError("API failed to get awaiting response from {}".format(user_channel))
+        logging.info("asked for response from unknown channel")
+        return False
     else:
         return bool(response.json()["awaiting_response"])
 

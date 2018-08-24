@@ -1,3 +1,5 @@
+import json
+
 from app import app
 from app import db
 from flask import jsonify, request, abort, make_response
@@ -251,5 +253,37 @@ def get_slack_response():
     then send those answers back to the slack channel
     :return:
     """
-    app.logger.error(request.json)
-    return "ok", 201
+    payload = json.loads(request.form["payload"])
+    team = payload["callback_id"]
+    an_answer = Answer.query.filter_by(team=team).first()
+    if not an_answer:
+        return "Done!"
+    issue = Issue.query.get(an_answer.issue_id)
+    all_answers = Answer.query.filter_by(team=team, issue_id=an_answer.issue_id).all()
+
+    output_string = "\n".join([issue.key, issue.summary, issue.url])
+
+    for answer in all_answers:
+        output_string += "\n{} from {}".format(answer.value, answer.user_name)
+        db.session.delete(answer)
+
+    db.session.commit()
+
+    return jsonify({
+        "text": output_string,
+        "attachments": [
+            {
+                "fallback": "Next",
+                "callback_id": team,
+                "actions": [
+                    {
+                        "name": "Action",
+                        "type": "button",
+                        "text": "See Next",
+                        "value": "next",
+                    }
+                ]
+            }
+        ]
+    })
+
