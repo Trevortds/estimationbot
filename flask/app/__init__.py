@@ -10,10 +10,12 @@ app.config.from_object(Config)
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
-
 from app import routes, models
 
-# TODO Add a database based on this https://blog.miguelgrinberg.com/post/the-flask-mega-tutorial-part-iv-database
+@app.shell_context_processor
+def make_shell_context():
+    return {"db": db, "User": models.User, "Issue": models.Issue, "Answer": models.Answer}
+
 # TODO move global data from bot into database
 # TODO add endpoint to recieve slack data
 # TODO add an authentication configuration website

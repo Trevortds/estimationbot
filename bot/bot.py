@@ -7,7 +7,6 @@ import requests
 from time import sleep
 import dateutil.parser
 from dateutil import tz
-
 import yaml
 
 try:
@@ -30,7 +29,7 @@ except FileNotFoundError:
 
 slack_client = SlackClient(api_token)
 start_time = datetime.datetime.now()
-jira_user = os.environ["JIRA_UNAME"] # TODO use oauth
+jira_user = os.environ["JIRA_UNAME"]  # TODO use oauth
 jira_pass = os.environ["JIRA_PWORD"]
 
 awaiting_response = set()
