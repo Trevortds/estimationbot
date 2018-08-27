@@ -8,7 +8,10 @@ flask_url = SQLALCHEMY_DATABASE_URI = os.environ.get('FLASK_URL') or \
 
 
 def check():
-    response = requests.get(flask_url)
+    try:
+        response = requests.get(flask_url)
+    except (ConnectionError, requests.exceptions.ConnectionError):
+        return False
     if response.status_code < 400:
         return True
     else:

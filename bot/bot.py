@@ -31,7 +31,7 @@ except FileNotFoundError:
 slack_client = SlackClient(api_token)
 start_time = datetime.datetime.now()
 jira_user = os.environ["JIRA_UNAME"]  # TODO use oauth
-jira_pass = os.environ["JIRA_PWORD"]
+jira_pass = os.environ["JIRA_TOKEN"]
 
 answers = {}
 '''
@@ -221,6 +221,10 @@ def settings_to_datetime(team_settings: dict):
 def main():
     set_up_logging()
     READ_WEBSOCKET_DELAY = 1  # second delay between reading from firehose
+
+    while not client.check():
+        sleep(1)
+        logging.info("waiting for flask to come up")
 
     start_times = {settings_to_datetime(cfg["teams"][team]["start_time"]): team for team in cfg["teams"]}
     start_times[datetime.datetime.now().replace(microsecond=0) + datetime.timedelta(seconds=1)] = "professional-services"
