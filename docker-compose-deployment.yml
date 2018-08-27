@@ -1,0 +1,28 @@
+version: '2.1'
+
+services:
+  scrumbot_bot:
+    image: quay.io/ayfie_trevor_sullivan/scrumbot_bot:latest
+
+    volumes:
+      - ./config.yml:/home/scrumbot/config.yml
+
+    links:
+      - "scrumbot_flask:flaskapp"
+
+    environment:
+      CLIENT_SECRET: ${CLIENT_SECRET}
+      VERIFICATION_TOKEN: ${VERIFICATION_TOKEN}
+      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN}
+      JIRA_UNAME: ${JIRA_UNAME}
+      JIRA_TOKEN: ${JIRA_TOKEN}
+      TEST: "0"
+
+  scrumbot_flask:
+    image: quay.io/ayfie_trevor_sullivan/scrumbot_flask:latest
+
+    ports:
+      - ${SCRUMBOT_PORT:-5000}:5000
+    volumes:
+      - ./data:/home/scrumbot/data
+      - ./config.yml:/config.yml

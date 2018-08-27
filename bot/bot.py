@@ -110,10 +110,14 @@ def start_conversation(channel, unestimated_tasks):
 
 def start_estimations(team: str):
     # client.wipe_answers(team)
-    unestimated_tasks = get_unestimated_tasks(team)
+    unestimated_tasks = get_unestimated_tasks(team, cfg["teams"][team]["max_per_meeting"])
     for email in cfg["teams"][team]["users_to_notify"]:
         user_list = slack_client.api_call("users.list")["members"] # use this to get users.
-        user = [user for user in user_list if user["profile"].get("email", "") == email][0] # use this to get id
+        try:
+            user = [user for user in user_list if user["profile"].get("email", "") == email][0] # use this to get id
+        except IndexError:
+            logging.error("No user in slack for email {}".format(email))
+            continue
         user_channel = slack_client.api_call("im.open", user=user["id"])["channel"]["id"] # use this to get dm channel
 
         client.add_user(user["profile"]["display_name"], user_channel)
@@ -227,10 +231,12 @@ def main():
         logging.info("waiting for flask to come up")
 
     start_times = {settings_to_datetime(cfg["teams"][team]["start_time"]): team for team in cfg["teams"]}
-    start_times[datetime.datetime.now().replace(microsecond=0) + datetime.timedelta(seconds=1)] = "professional-services"
-
     end_times = {settings_to_datetime(cfg["teams"][team]["end_time"]): team for team in cfg["teams"]}
-    end_times[datetime.datetime.now().replace(microsecond=0) + datetime.timedelta(seconds=120)] = "professional-services"
+
+    if os.environ.get("TEST") == "1":
+        start_times[datetime.datetime.now().replace(microsecond=0) + datetime.timedelta(seconds=1)] = list(cfg["teams"].keys())[0]
+        end_times[datetime.datetime.now().replace(microsecond=0) + datetime.timedelta(seconds=120)] = list(cfg["teams"].keys())[0]
+
     logging.info("Estimations beginning at {}".format(start_times))
 
     if slack_client.rtm_connect():

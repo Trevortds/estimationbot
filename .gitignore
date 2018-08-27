@@ -1,4 +1,6 @@
 *.db
+build.sh
+deploy.sh
 
 
 # Created by https://www.gitignore.io/api/python,intellij,intellij+all
