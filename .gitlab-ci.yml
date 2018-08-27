@@ -1,0 +1,34 @@
+variables:
+  BOT_IMAGE: "quay.io/ayfie_trevor_sullivan/scrumbot_bot"
+  FLASK_IMAGE: "quay.io/ayfie_trevor_sullivan/scrumbot_flask"
+  TEST_IMAGE: "test_annotation_service"
+  BOT_LATEST_TAG: "$BOT_IMAGE:latest"
+  FLASK_LATEST_TAG: "$FLASK_IMAGE:latest"
+  BOT_IMAGE_TAG:  "$BOT_IMAGE:$CI_PIPELINE_ID"
+  FLASK_IMAGE_TAG:  "$FLASK_IMAGE:$CI_PIPELINE_ID"
+  TEST_TAG:   "$TEST_IMAGE:$CI_PIPELINE_ID"
+  GIT_SUBMODULE_STRATEGY: "normal"
+  GIT_STRATEGY: "clone"
+
+
+
+stages:
+  - build
+  - deploy
+
+build:
+  stage: build
+  script:
+   - docker build -t $BOT_IMAGE_TAG ./bot
+   - docker build -t $FLASK_IMAGE_TAG ./flask
+
+
+deploy:
+  stage: deploy
+  script:
+    - docker tag $BOT_IMAGE_TAG $BOT_LATEST_TAG
+    - docker tag $FLASK_IMAGE_TAG $FLASK_LATEST_TAG
+    - docker push $BOT_IMAGE_TAG
+    - docker push $FLASK_LATEST_TAG
+  only:
+    - develop
