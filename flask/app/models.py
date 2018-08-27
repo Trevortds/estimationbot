@@ -60,6 +60,5 @@ class Issue(db.Model):
             "url": self.url,
         }
 
-# http://flask-sqlalchemy.pocoo.org/2.3/models/#many-to-many-relationships
 # https://blog.miguelgrinberg.com/post/the-flask-mega-tutorial-part-iv-database
 # http://ondras.zarovi.cz/sql/demo/

@@ -4,7 +4,7 @@ import logging
 
 
 flask_url = SQLALCHEMY_DATABASE_URI = os.environ.get('FLASK_URL') or \
-                                      'http://flaskapp/'
+                                      'http://flaskapp:5000'
 
 
 def check():

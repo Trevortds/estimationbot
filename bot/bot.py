@@ -30,7 +30,7 @@ except FileNotFoundError:
 
 slack_client = SlackClient(api_token)
 start_time = datetime.datetime.now()
-jira_user = os.environ["JIRA_UNAME"]  # TODO use oauth
+jira_user = os.environ["JIRA_UNAME"]
 jira_pass = os.environ["JIRA_TOKEN"]
 
 answers = {}
