@@ -17,7 +17,7 @@ teams:
     # when you want users to start getting questions
     start_time:
       day_of_week: Tuesday
-      time: 11 AM
+      time: 12 PM
       time_zone: America/New_York
     # When you want to stop accepting answers and put the responses in the channel.
     end_time:

@@ -2,6 +2,7 @@ import os
 from slackclient import SlackClient
 from slackclient.server import SlackConnectionError
 import datetime
+from tzlocal import get_localzone
 import sys
 import logging
 import requests
@@ -216,11 +217,12 @@ def parse_slack_output(slack_rtm_output):
 
 def settings_to_datetime(team_settings: dict):
     output = dateutil.parser.parse(team_settings["day_of_week"])
-    if output < datetime.datetime.now():
-        output += datetime.timedelta(days=7)
     hour = dateutil.parser.parse(team_settings["time"])
     tzinfo = tz.gettz(team_settings["time_zone"])
+    local_tzinfo = get_localzone()
     output = output.replace(hour=hour.hour, minute=hour.minute, tzinfo=tzinfo)
+    if output < datetime.datetime.now(tz=local_tzinfo):
+        output += datetime.timedelta(days=7)
     return output
 
 def main():
