@@ -255,7 +255,7 @@ def main():
             if message and channel:
                 process_message(message, channel)
 
-            now = datetime.datetime.now().replace(microsecond=0)
+            now = datetime.datetime.now(tz=get_localzone()).replace(microsecond=0)
             trigger_team = start_times.get(now)
             if trigger_team:
                 start_estimations(trigger_team)
