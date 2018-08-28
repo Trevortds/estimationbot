@@ -1,5 +1,6 @@
 import os
 from slackclient import SlackClient
+from slackclient.server import SlackConnectionError
 import datetime
 import sys
 import logging
@@ -242,8 +243,12 @@ def main():
     if slack_client.rtm_connect():
         logging.info("ScrumBot connected and running")
         while True:
-            message, channel, user = parse_slack_output(
-                slack_client.rtm_read())
+            try:
+                message, channel, user = parse_slack_output(
+                                                            slack_client.rtm_read())
+            except SlackConnectionError:
+                logging.warning("Slack Connection Error")
+                continue
 
             if message and channel:
                 process_message(message, channel)
