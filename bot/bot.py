@@ -216,7 +216,7 @@ def parse_slack_output(slack_rtm_output):
 
 def settings_to_datetime(team_settings: dict):
     output = dateutil.parser.parse(team_settings["day_of_week"])
-    if output < datetime.datetime.today():
+    if output < datetime.datetime.now():
         output += datetime.timedelta(days=7)
     hour = dateutil.parser.parse(team_settings["time"])
     tzinfo = tz.gettz(team_settings["time_zone"])
