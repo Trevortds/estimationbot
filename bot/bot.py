@@ -260,7 +260,6 @@ def main():
             if trigger_team:
                 start_estimations(trigger_team)
 
-
             trigger_team = end_times.get(now)
             if trigger_team:
                 stop_estimations(trigger_team)
