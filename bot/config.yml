@@ -1,6 +1,6 @@
 name: "scrumbot"
 
-base_url: https://ayfie-dev.atlassian.net
+base_url: https://your_space.atlassian.net
 start_message: "It's time for the weekly estimation!
 Please provide a fibonacci-number estimation for the following tasks:"
 
@@ -24,4 +24,4 @@ teams:
       time_zone: America/New_York
     max_per_meeting: 10
     meeting_channel: "general"
-    jql_search_query: 'project in (PSE, "IN", CQRC, Bahr) AND cf[10022] = "OPS America" AND status = "To Do" AND type != Epic AND "Story Points" is EMPTY ORDER BY createdDate ASC'
+    jql_search_query: 'project in (PROJ) AND status = "To Do" AND type != Epic AND "Story Points" is EMPTY ORDER BY createdDate ASC'
