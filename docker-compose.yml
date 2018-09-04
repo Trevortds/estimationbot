@@ -16,9 +16,13 @@ services:
       SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN}
       JIRA_UNAME: ${JIRA_UNAME}
       JIRA_TOKEN: ${JIRA_TOKEN}
+      BOT_LOGLEVEL: DEBUG
 
   scrumbot_flask:
     build: ./flask
+
+    environment:
+          FLASK_LOGLEVEL: INFO
 
     ports:
       - 5000:5000

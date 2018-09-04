@@ -22,7 +22,7 @@ def get_awaiting_response(user_channel):
     response = requests.get(flask_url+"/api/users",
                             params={"user_channel": user_channel})
     if response.status_code != 200:
-        logging.info("asked for response from unknown channel")
+        logging.debug("asked for response from unknown channel")
         return False
     else:
         return bool(response.json()["awaiting_response"])
