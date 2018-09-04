@@ -190,10 +190,8 @@ def parse_slack_output(slack_rtm_output):
     '''
     logging.debug(slack_rtm_output)
 
-
-    output_list = slack_rtm_output
-    if output_list and len(output_list) > 0:
-        for output in output_list:
+    if slack_rtm_output and len(slack_rtm_output) > 0:
+        for output in slack_rtm_output:
             if output and output["type"] == "message" and "bot_id" not in output \
                     and 'text' in output \
                     and client.get_awaiting_response(output['channel']):
