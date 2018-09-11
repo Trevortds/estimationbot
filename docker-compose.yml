@@ -3,7 +3,7 @@ version: '2.1'
 services:
   scrumbot:
     build: ./bot
-
+    restart: on-failure
     volumes:
       - ./bot/config.yml:/home/scrumbot/config.yml
 
@@ -20,7 +20,7 @@ services:
 
   scrumbot_flask:
     build: ./flask
-
+    restart: on-failure
     environment:
           FLASK_LOGLEVEL: INFO
 

@@ -133,8 +133,11 @@ def end_conversation(user_channel, team):
 
 
 def start_meeting(team):
-    meeting_channel = [c["id"] for c in slack_client.api_call("channels.list")["channels"]
+    try:
+        meeting_channel = [c["id"] for c in slack_client.api_call("channels.list")["channels"]
                        if c["name"] == cfg["teams"][team]["meeting_channel"]][0]
+    except IndexError:
+        logging.ERROR("No channel with name {}".format(cfg["teams"][team]["meeting_channel"]))
     send_message(meeting_channel,
                  "The results from the estimation poll are ready:\n",
                  [{"fallback": "Show Results",
@@ -238,6 +241,16 @@ def main():
                                                             slack_client.rtm_read())
             except SlackConnectionError:
                 logging.warning("Slack Connection Error: sleeping {} seconds")
+                sleep(timeout)
+                timeout = timeout * 2
+                continue
+            except requests.ConnectionError:
+                logging.warning("Slack http Connection Error: sleeping {} seconds")
+                sleep(timeout)
+                timeout = timeout * 2
+                continue
+            except ConnectionResetError:
+                logging.warning("Slack http Connection Reset: sleeping {} seconds")
                 sleep(timeout)
                 timeout = timeout * 2
                 continue

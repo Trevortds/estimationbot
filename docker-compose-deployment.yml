@@ -3,7 +3,7 @@ version: '2.1'
 services:
   scrumbot_bot:
     image: quay.io/ayfie_trevor_sullivan/scrumbot_bot:latest
-
+    restart: on-failure
     volumes:
       - ./config.yml:/home/scrumbot/config.yml
 
@@ -21,7 +21,7 @@ services:
 
   scrumbot_flask:
     image: quay.io/ayfie_trevor_sullivan/scrumbot_flask:latest
-
+    restart: on-failure
     environment:
       FLASK_LOGLEVEL: INFO
 
