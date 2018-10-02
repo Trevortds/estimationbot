@@ -240,19 +240,28 @@ def main():
                 message, channel, user = parse_slack_output(
                                                             slack_client.rtm_read())
             except SlackConnectionError:
-                logging.warning("Slack Connection Error: sleeping {} seconds")
-                sleep(timeout)
-                timeout = timeout * 2
+                if slack_client.rtm_connect():
+                    logging.warning("Slack Connection Error: recovered after {}".format(timeout))
+                else:
+                    logging.warning("Slack Connection Error: sleeping {} seconds".format(timeout))
+                    sleep(timeout)
+                    timeout = timeout * 2
                 continue
             except requests.ConnectionError:
-                logging.warning("Slack http Connection Error: sleeping {} seconds")
-                sleep(timeout)
-                timeout = timeout * 2
+                if slack_client.rtm_connect():
+                    logging.warning("Requests Connection Error: recovered after {}".format(timeout))
+                else:
+                    logging.warning("Requests Connection Error: sleeping {} seconds".format(timeout))
+                    sleep(timeout)
+                    timeout = timeout * 2
                 continue
             except ConnectionResetError:
-                logging.warning("Slack http Connection Reset: sleeping {} seconds")
-                sleep(timeout)
-                timeout = timeout * 2
+                if slack_client.rtm_connect():
+                    logging.warning("Connection Reset Error: recovered after {}".format(timeout))
+                else:
+                    logging.warning("Connection Reset Error: sleeping {} seconds".format(timeout))
+                    sleep(timeout)
+                    timeout = timeout * 2
                 continue
             else:
                 timeout = 1
