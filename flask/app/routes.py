@@ -270,6 +270,7 @@ def get_slack_response():
     db.session.commit()
 
     return jsonify({
+        "replace_original": False,
         "text": output_string,
         "attachments": [
             {
