@@ -3,7 +3,7 @@ version: '2.1'
 services:
   scrumbot:
     build: ./bot
-
+    restart: on-failure
     volumes:
       - ./bot/config.yml:/home/scrumbot/config.yml
 
@@ -16,9 +16,13 @@ services:
       SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN}
       JIRA_UNAME: ${JIRA_UNAME}
       JIRA_TOKEN: ${JIRA_TOKEN}
+      BOT_LOGLEVEL: DEBUG
 
   scrumbot_flask:
     build: ./flask
+    restart: on-failure
+    environment:
+          FLASK_LOGLEVEL: INFO
 
     ports:
       - 5000:5000

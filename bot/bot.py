@@ -53,23 +53,11 @@ answers = {}
 '''
 
 
-def set_up_logging(log_file_name=None):
-    _logger = logging.getLogger('')
-    _logger.setLevel(logging.DEBUG)
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.DEBUG)
-    ch.setFormatter(logging.Formatter('%(asctime)s - %(message)s'))
-    _logger.addHandler(ch)
-    if log_file_name:
-        fh = logging.FileHandler(log_file_name)
-        fh.setLevel(logging.DEBUG)
-        fh.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(name)s %(process)d %(thread)d %(module)s::%('
-                                          'funcName)s[%(lineno)d] - %(message)s'))
-        _logger.addHandler(fh)
-    logging.getLogger('elasticsearch').setLevel(logging.WARNING)
-    logging.getLogger('urllib3').setLevel(logging.WARNING)
-
-    return _logger
+def set_up_logging(loglevel):
+    numeric_level = getattr(logging, loglevel.upper(), None)
+    if not isinstance(numeric_level, int):
+        raise ValueError('Invalid log level: %s' % loglevel)
+    logging.basicConfig(level=numeric_level)
 
 
 def send_message(channel, message, attachments=None):
@@ -145,8 +133,11 @@ def end_conversation(user_channel, team):
 
 
 def start_meeting(team):
-    meeting_channel = [c["id"] for c in slack_client.api_call("channels.list")["channels"]
+    try:
+        meeting_channel = [c["id"] for c in slack_client.api_call("channels.list")["channels"]
                        if c["name"] == cfg["teams"][team]["meeting_channel"]][0]
+    except IndexError:
+        logging.ERROR("No channel with name {}".format(cfg["teams"][team]["meeting_channel"]))
     send_message(meeting_channel,
                  "The results from the estimation poll are ready:\n",
                  [{"fallback": "Show Results",
@@ -164,7 +155,7 @@ def start_meeting(team):
 
 
 def stop_estimations(team: str):
-    logging.info("Estimation finished! Results: \n{}".format(client.get_answer(team,
+    logging.debug("Estimation finished! Results: \n{}".format(client.get_answer(team,
                                                                                show_all=True)))
     for email in cfg["teams"][team]["users_to_notify"]:
         user_list = slack_client.api_call("users.list")["members"] # use this to get users.
@@ -202,10 +193,8 @@ def parse_slack_output(slack_rtm_output):
     '''
     logging.debug(slack_rtm_output)
 
-
-    output_list = slack_rtm_output
-    if output_list and len(output_list) > 0:
-        for output in output_list:
+    if slack_rtm_output and len(slack_rtm_output) > 0:
+        for output in slack_rtm_output:
             if output and output["type"] == "message" and "bot_id" not in output \
                     and 'text' in output \
                     and client.get_awaiting_response(output['channel']):
@@ -226,7 +215,7 @@ def settings_to_datetime(team_settings: dict):
     return output
 
 def main():
-    set_up_logging()
+    set_up_logging(os.environ.get("BOT_LOGLEVEL"))
     READ_WEBSOCKET_DELAY = 1  # second delay between reading from firehose
 
     while not client.check():
@@ -244,13 +233,38 @@ def main():
 
     if slack_client.rtm_connect():
         logging.info("ScrumBot connected and running")
+        timeout = 1
+
         while True:
             try:
                 message, channel, user = parse_slack_output(
                                                             slack_client.rtm_read())
             except SlackConnectionError:
-                logging.warning("Slack Connection Error")
+                if slack_client.rtm_connect():
+                    logging.warning("Slack Connection Error: recovered after {}".format(timeout))
+                else:
+                    logging.warning("Slack Connection Error: sleeping {} seconds".format(timeout))
+                    sleep(timeout)
+                    timeout = timeout * 2
                 continue
+            except requests.ConnectionError:
+                if slack_client.rtm_connect():
+                    logging.warning("Requests Connection Error: recovered after {}".format(timeout))
+                else:
+                    logging.warning("Requests Connection Error: sleeping {} seconds".format(timeout))
+                    sleep(timeout)
+                    timeout = timeout * 2
+                continue
+            except ConnectionResetError:
+                if slack_client.rtm_connect():
+                    logging.warning("Connection Reset Error: recovered after {}".format(timeout))
+                else:
+                    logging.warning("Connection Reset Error: sleeping {} seconds".format(timeout))
+                    sleep(timeout)
+                    timeout = timeout * 2
+                continue
+            else:
+                timeout = 1
 
             if message and channel:
                 process_message(message, channel)
@@ -266,6 +280,6 @@ def main():
 
             sleep(READ_WEBSOCKET_DELAY)
     else:
-        logging.info("connection failed, invalid slack token or bot id?")
+        logging.error("connection failed, invalid slack token or bot id?")
         return False
 
