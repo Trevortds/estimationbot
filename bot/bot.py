@@ -89,11 +89,11 @@ def get_unestimated_tasks(team: str, max=10):
     return output
 
 
-def start_conversation(channel, unestimated_tasks):
+def start_conversation(channel, unestimated_tasks, end_time: str):
     logging.debug("starting conversation in channel {}".format(channel))
     client.add_conversation(channel, unestimated_tasks)
 
-    send_message(channel, cfg["start_message"])
+    send_message(channel, cfg["start_message"] + "\nYou have until " + end_time)
     send_message(channel, "\n".join(client.get_conversation(channel)[0][2:]))
     client.set_awaiting_response(channel, True)
 
@@ -111,7 +111,7 @@ def start_estimations(team: str):
         user_channel = slack_client.api_call("im.open", user=user["id"])["channel"]["id"] # use this to get dm channel
 
         client.add_user(user["profile"]["display_name"], user_channel)
-        start_conversation(user_channel, unestimated_tasks)
+        start_conversation(user_channel, unestimated_tasks, cfg["teams"][team]["end_time"])
 
 
 def end_conversation(user_channel, team):
@@ -224,6 +224,7 @@ def main():
 
     start_times = {settings_to_datetime(cfg["teams"][team]["start_time"]): team for team in cfg["teams"]}
     end_times = {settings_to_datetime(cfg["teams"][team]["end_time"]): team for team in cfg["teams"]}
+    warn_times = {settings_to_datetime(cfg["teams"][team]["end_time"] - datetime.timedelta(hours=1)): team for team in cfg["teams"]}
 
     if os.environ.get("TEST") == "1":
         start_times[datetime.datetime.now().replace(microsecond=0) + datetime.timedelta(seconds=1)] = list(cfg["teams"].keys())[0]
@@ -277,6 +278,11 @@ def main():
             trigger_team = end_times.get(now)
             if trigger_team:
                 stop_estimations(trigger_team)
+
+            trigger_team = warn_times.get(now)
+            if trigger_team:
+                pass
+                # warning
 
             sleep(READ_WEBSOCKET_DELAY)
     else:
