@@ -89,11 +89,11 @@ def get_unestimated_tasks(team: str, max=10):
     return output
 
 
-def start_conversation(channel, unestimated_tasks):
+def start_conversation(channel, unestimated_tasks, end_time: str):
     logging.debug("starting conversation in channel {}".format(channel))
     client.add_conversation(channel, unestimated_tasks)
 
-    send_message(channel, cfg["start_message"])
+    send_message(channel, str(cfg["start_message"]) + "\nYou have until " + end_time)
     send_message(channel, "\n".join(client.get_conversation(channel)[0][2:]))
     client.set_awaiting_response(channel, True)
 
@@ -101,8 +101,8 @@ def start_conversation(channel, unestimated_tasks):
 def start_estimations(team: str):
     # client.wipe_answers(team)
     unestimated_tasks = get_unestimated_tasks(team, cfg["teams"][team]["max_per_meeting"])
+    user_list = slack_client.api_call("users.list")["members"]  # use this to get users.
     for email in cfg["teams"][team]["users_to_notify"]:
-        user_list = slack_client.api_call("users.list")["members"] # use this to get users.
         try:
             user = [user for user in user_list if user["profile"].get("email", "") == email][0] # use this to get id
         except IndexError:
@@ -111,7 +111,7 @@ def start_estimations(team: str):
         user_channel = slack_client.api_call("im.open", user=user["id"])["channel"]["id"] # use this to get dm channel
 
         client.add_user(user["profile"]["display_name"], user_channel)
-        start_conversation(user_channel, unestimated_tasks)
+        start_conversation(user_channel, unestimated_tasks, cfg["teams"][team]["end_time"]["time"])
 
 
 def end_conversation(user_channel, team):
@@ -153,12 +153,33 @@ def start_meeting(team):
                    }
                  ])
 
+def send_reminder(user_channel, team):
+    # this could be made way more efficient if a method could be made for selecting users with open
+    #   answers in a particular team
+    for issue in client.get_conversation(user_channel):
+        if issue[1] == team:
+            send_message(user_channel, "Only 1 hour left, please estimate these issues :point_up:")
+            break
+
+
+
+def send_warnings(team: str):
+    logging.info("Sending warning! Results: \n{}".format(client.get_answer(team,
+                                                                           show_all=True)))
+    user_list = slack_client.api_call("users.list")["members"] # use this to get users.
+    for email in cfg["teams"][team]["users_to_notify"]:
+        user = [user for user in user_list if user["profile"].get("email", "") == email][0] # use this to get id
+        user_channel = slack_client.api_call("im.open", user=user["id"])["channel"]["id"] # use this to get dm channel
+
+        send_reminder(user_channel, team)
+
+
 
 def stop_estimations(team: str):
-    logging.debug("Estimation finished! Results: \n{}".format(client.get_answer(team,
+    logging.info("Estimation finished! Results: \n{}".format(client.get_answer(team,
                                                                                show_all=True)))
+    user_list = slack_client.api_call("users.list")["members"] # use this to get users.
     for email in cfg["teams"][team]["users_to_notify"]:
-        user_list = slack_client.api_call("users.list")["members"] # use this to get users.
         user = [user for user in user_list if user["profile"].get("email", "") == email][0] # use this to get id
         user_channel = slack_client.api_call("im.open", user=user["id"])["channel"]["id"] # use this to get dm channel
 
@@ -224,10 +245,15 @@ def main():
 
     start_times = {settings_to_datetime(cfg["teams"][team]["start_time"]): team for team in cfg["teams"]}
     end_times = {settings_to_datetime(cfg["teams"][team]["end_time"]): team for team in cfg["teams"]}
+    warn_times = {settings_to_datetime(cfg["teams"][team]["end_time"]) - datetime.timedelta(hours=1): team for team in cfg["teams"]}
 
     if os.environ.get("TEST") == "1":
-        start_times[datetime.datetime.now().replace(microsecond=0) + datetime.timedelta(seconds=1)] = list(cfg["teams"].keys())[0]
-        end_times[datetime.datetime.now().replace(microsecond=0) + datetime.timedelta(seconds=120)] = list(cfg["teams"].keys())[0]
+        start_times[datetime.datetime.now(tz=get_localzone()).replace(microsecond=0) +
+                    datetime.timedelta(seconds=10)] = list(cfg["teams"].keys())[0]
+        end_times[datetime.datetime.now(tz=get_localzone()).replace(microsecond=0) +
+                  datetime.timedelta(seconds=120)] = list(cfg["teams"].keys())[0]
+        warn_times[datetime.datetime.now(tz=get_localzone()).replace(microsecond=0) +
+                  datetime.timedelta(seconds=60)] = list(cfg["teams"].keys())[0]
 
     logging.info("Estimations beginning at {}".format(start_times))
 
@@ -277,6 +303,15 @@ def main():
             trigger_team = end_times.get(now)
             if trigger_team:
                 stop_estimations(trigger_team)
+                start_times = {settings_to_datetime(cfg["teams"][team]["start_time"]): team for team in cfg["teams"]}
+                end_times = {settings_to_datetime(cfg["teams"][team]["end_time"]): team for team in cfg["teams"]}
+                warn_times = {settings_to_datetime(cfg["teams"][team]["end_time"]) - datetime.timedelta(hours=1): team for team in cfg["teams"]}
+
+            trigger_team = warn_times.get(now)
+            if trigger_team:
+                pass
+                send_warnings(trigger_team)
+                # warning
 
             sleep(READ_WEBSOCKET_DELAY)
     else:

@@ -1,6 +1,7 @@
 *.db
 build.sh
 deploy.sh
+composition/*
 
 
 # Created by https://www.gitignore.io/api/python,intellij,intellij+all

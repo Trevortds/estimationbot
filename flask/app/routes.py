@@ -257,7 +257,7 @@ def get_slack_response():
     team = payload["callback_id"]
     an_answer = Answer.query.filter_by(team=team).first()
     if not an_answer:
-        return request.form["original_message"]["text"]
+        return payload["original_message"]["text"]
     issue = Issue.query.get(an_answer.issue_id)
     all_answers = Answer.query.filter_by(team=team, issue_id=an_answer.issue_id).all()
 
