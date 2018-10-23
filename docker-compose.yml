@@ -17,6 +17,7 @@ services:
       JIRA_UNAME: ${JIRA_UNAME}
       JIRA_TOKEN: ${JIRA_TOKEN}
       BOT_LOGLEVEL: DEBUG
+      TEST: "1"
 
   scrumbot_flask:
     build: ./flask
