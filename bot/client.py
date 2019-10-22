@@ -112,6 +112,7 @@ def get_conversation(user_channel):
     """
     iterate through user.conversation (list of issues) and query the issues api
       to make a tuple from each one
+      TODO move this loop to the backend, or use some database magic to make it a single call
     :return:
     """
     user = get_user(user_channel)
